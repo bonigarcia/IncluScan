@@ -94,14 +94,30 @@ def scan_snapshot(
 
     for page in pages:
         prompt = build_review_prompt(page.text)
-        raw_response, page_input_tokens, page_output_tokens = request_completion(prompt)
-        findings_by_url[page.url] = parse_review_response(raw_response)
-        if page_input_tokens is not None:
-            input_tokens += page_input_tokens
-            saw_tokens = True
-        if page_output_tokens is not None:
-            output_tokens += page_output_tokens
-            saw_tokens = True
+        parsed_findings: list[ReviewFinding] = []
+        for attempt in range(2):
+            current_prompt = prompt if attempt == 0 else f"{prompt}\n\nReturn only valid JSON that matches the required schema."
+            try:
+                raw_response, page_input_tokens, page_output_tokens = request_completion(current_prompt)
+            except requests.RequestException:
+                if attempt == 1:
+                    parsed_findings = []
+                    break
+                continue
+            if page_input_tokens is not None:
+                input_tokens += page_input_tokens
+                saw_tokens = True
+            if page_output_tokens is not None:
+                output_tokens += page_output_tokens
+                saw_tokens = True
+            try:
+                parsed_findings = parse_review_response(raw_response)
+                break
+            except (json.JSONDecodeError, ValueError):
+                parsed_findings = []
+                if attempt == 1:
+                    break
+        findings_by_url[page.url] = parsed_findings
 
     finished_at = datetime.now(timezone.utc).isoformat()
     run = ScanRunSummary(

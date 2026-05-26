@@ -1,4 +1,5 @@
 import pytest
+import requests
 
 from incluscan.scanner import build_review_prompt, parse_review_response, scan_snapshot
 from incluscan.models import ScrapedPage, SnapshotMetadata
@@ -72,4 +73,64 @@ def test_scan_snapshot_uses_an_injected_completion_callable():
     scan, findings_by_url = scan_snapshot(snapshot, [page], fake_completion, "OpenAI", "gpt-4o-mini")
 
     assert scan.base_url == snapshot.base_url
+    assert findings_by_url[page.url] == []
+
+
+def test_scan_snapshot_retries_invalid_json_once():
+    snapshot = SnapshotMetadata(
+        snapshot_id="snapshot-001",
+        base_url="https://www.uc3m.es/",
+        fetched_at="2026-05-26T10:00:00Z",
+    )
+    page = ScrapedPage(
+        snapshot_id=snapshot.snapshot_id,
+        url="https://www.uc3m.es/",
+        fetched_at=snapshot.fetched_at,
+        content_type="text/html",
+        title="UC3M",
+        text="Los alumnos deben entregar su solicitud.",
+        language_hint="es",
+        status_code=200,
+        crawl_depth=0,
+        source_type="seed",
+    )
+
+    prompts: list[str] = []
+
+    def fake_completion(prompt: str):
+        prompts.append(prompt)
+        if len(prompts) == 1:
+            return "not json", None, None
+        return "[]", None, None
+
+    scan, findings_by_url = scan_snapshot(snapshot, [page], fake_completion, "OpenAI", "gpt-4o-mini")
+
+    assert len(prompts) == 2
+    assert findings_by_url[page.url] == []
+
+
+def test_scan_snapshot_records_timeout_as_empty_findings():
+    snapshot = SnapshotMetadata(
+        snapshot_id="snapshot-001",
+        base_url="https://www.uc3m.es/",
+        fetched_at="2026-05-26T10:00:00Z",
+    )
+    page = ScrapedPage(
+        snapshot_id=snapshot.snapshot_id,
+        url="https://www.uc3m.es/",
+        fetched_at=snapshot.fetched_at,
+        content_type="text/html",
+        title="UC3M",
+        text="Los alumnos deben entregar su solicitud.",
+        language_hint="es",
+        status_code=200,
+        crawl_depth=0,
+        source_type="seed",
+    )
+
+    def fake_completion(prompt: str):
+        raise requests.ReadTimeout("timed out")
+
+    scan, findings_by_url = scan_snapshot(snapshot, [page], fake_completion, "Ollama", "gemma3:1b")
+
     assert findings_by_url[page.url] == []
