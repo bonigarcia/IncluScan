@@ -14,7 +14,8 @@ Run it with:
 python -m incluscan
 ```
 
-### Example: Scrapper
+## Examples
+### Scrapper
 
 The Scrapper crawls a site and saves a JSONL snapshot under `docs/snapshots/`.
 
@@ -42,7 +43,7 @@ Saved snapshot to docs/snapshots/snapshot-896b0cf0.jsonl
 
 The JSONL file contains one snapshot record plus one line per crawled page.
 
-### Example: Scanner
+### Scanner
 
 The Scanner loads a saved snapshot, lets you choose a vendor and model, then analyzes each page.
 
@@ -82,6 +83,9 @@ The scanner writes two static HTML reports:
 - The Scrapper supports HTML pages and PDFs with embedded text.
 - The Scanner supports OpenAI, Anthropic, Google, and Ollama when the relevant API key or local service is available.
 - Each scan analyzes pages in the original language and writes static HTML reports under `docs/`.
+
+## Results
+The results of the scan are static HTML reports under `docs/`. The main `index.html` shows a card for each scan with metadata and a link to the individual report. Each individual report shows the pages analyzed, the issues found, and suggestions for improvement. These reports are available at this URL: https://bonigarcia.dev/IncluScan/
 
 ## Architecture
 
