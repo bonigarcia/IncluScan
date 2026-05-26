@@ -250,3 +250,31 @@ def test_crawl_site_uses_final_redirected_url():
     assert len(pages) == 2
     assert sum(page.url.endswith("vida-universitaria") for page in pages) == 1
     assert any(page.url == "https://www.uc3m.es/vida-universitaria" for page in pages)
+
+
+def test_crawl_site_ignores_desktop_query_variant():
+    class FakeResponse:
+        def __init__(self, url: str):
+            self.status_code = 200
+            self.headers = {"content-type": "text/html; charset=utf-8"}
+            self.url = url
+            if url.endswith("sitemap.xml"):
+                self.text = "<urlset><url><loc>https://www.uc3m.es/vida-universitaria?d=Desktop</loc></url><url><loc>https://www.uc3m.es/vida-universitaria</loc></url></urlset>"
+            elif url.endswith("robots.txt"):
+                self.text = "User-agent: *\nAllow: /"
+            else:
+                self.text = '<html><head><title>Vida universitaria</title></head><body><p>Campus life</p></body></html>'
+            self.content = self.text.encode("utf-8")
+
+        def raise_for_status(self):
+            return None
+
+    def fake_get(url, timeout=10, headers=None):
+        return FakeResponse(url)
+
+    snapshot, pages = crawl_site("https://www.uc3m.es/", page_cap=2, fetch=fake_get)
+
+    assert snapshot.base_url == "https://www.uc3m.es/"
+    assert len(pages) == 2
+    assert any(page.url == "https://www.uc3m.es/vida-universitaria" for page in pages)
+    assert sum(page.url == "https://www.uc3m.es/vida-universitaria" for page in pages) == 1

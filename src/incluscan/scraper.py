@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from time import sleep
-from urllib.parse import urljoin, urlparse
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 from uuid import uuid4
 from xml.etree import ElementTree
@@ -33,12 +33,18 @@ def should_follow_url(base_url: str, candidate_url: str) -> bool:
 
 def _crawl_key(base_url: str, candidate_url: str) -> str:
     base = urlparse(base_url)
+    normalized = _normalize_crawl_url(candidate_url)
+    return normalized._replace(scheme=base.scheme).geturl()
+
+
+def _normalize_crawl_url(candidate_url: str):
     candidate = urlparse(candidate_url)
     path = candidate.path or "/"
     if path != "/":
         path = path.rstrip("/") or "/"
         path = path.lower()
-    return candidate._replace(scheme=base.scheme, netloc=candidate.netloc.lower(), path=path, fragment="").geturl()
+    query = [(key, value) for key, value in parse_qsl(candidate.query, keep_blank_values=True) if not (key == "d" and value == "Desktop")]
+    return candidate._replace(path=path, query=urlencode(query, doseq=True), fragment="", netloc=candidate.netloc.lower())
 
 
 def extract_html_document(html: str, url: str) -> ExtractedDocument:
@@ -133,7 +139,7 @@ def crawl_site(
         except requests.RequestException:
             continue
 
-        final_url = response.url or current_url
+        final_url = _normalize_crawl_url(response.url or current_url).geturl()
         final_key = _crawl_key(base_url, final_url)
         if final_key in seen:
             seen.add(current_key)
