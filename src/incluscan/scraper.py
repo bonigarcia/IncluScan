@@ -37,6 +37,7 @@ def _crawl_key(base_url: str, candidate_url: str) -> str:
     path = candidate.path or "/"
     if path != "/":
         path = path.rstrip("/") or "/"
+        path = path.lower()
     return candidate._replace(scheme=base.scheme, netloc=candidate.netloc.lower(), path=path, fragment="").geturl()
 
 
