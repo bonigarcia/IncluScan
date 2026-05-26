@@ -60,7 +60,7 @@ def build_index_page(
               <p class="run-title">{escape(run.base_url)} - {escape(_friendly_date(run.snapshot_fetched_at))}</p>
               <span>{escape(run.vendor)} {escape(run.model)}</span>
               <span class="muted">{page_count} pages analyzed - {finding_count} findings</span>
-              <span><a href="runs/{escape(run.scan_id)}/index.html">Report</a></span>
+              <span><a href="runs/{escape(run.scan_id)}/index.html">Scan report</a></span>
             </article>'''
         )
     body = "".join(entries) if entries else '<p class="muted">No scan runs yet.</p>'

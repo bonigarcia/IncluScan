@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import requests
+
 from incluscan.scraper import crawl_site, extract_html_document, extract_pdf_document
 
 
@@ -10,6 +12,23 @@ def test_extract_html_document_returns_title_and_visible_text():
     assert doc.title == "UC3M Sample"
     assert "Language without bias" in doc.text
     assert "var x = 1" not in doc.text
+
+
+def test_extract_html_document_includes_meta_description_when_body_is_sparse():
+    html = """
+    <html>
+      <head>
+        <title>UC3M</title>
+        <meta name="description" content="University text in the homepage">
+      </head>
+      <body></body>
+    </html>
+    """
+
+    doc = extract_html_document(html, "https://www.uc3m.es/")
+
+    assert doc.title == "UC3M"
+    assert "University text in the homepage" in doc.text
 
 
 def test_extract_pdf_document_uses_embedded_text(monkeypatch, tmp_path: Path):
@@ -94,3 +113,70 @@ def test_crawl_site_keeps_seed_url_even_when_sitemap_exists():
     assert snapshot.base_url == "https://www.uc3m.es/grado/admision/solicitud/estudiantes-internacionales/estudiantes-europeos"
     assert any(page.url.endswith("estudiantes-europeos") for page in pages)
     assert any(page.url == "https://www.uc3m.es/page-2" for page in pages)
+
+
+def test_crawl_site_deduplicates_equivalent_root_urls():
+    class FakeResponse:
+        def __init__(self, url: str):
+            self.status_code = 200
+            self.headers = {"content-type": "text/html; charset=utf-8"}
+            self.url = url
+            if url.endswith("sitemap.xml"):
+                self.text = "<urlset><url><loc>http://www.uc3m.es</loc></url><url><loc>http://www.uc3m.es/</loc></url><url><loc>https://www.uc3m.es/page-2</loc></url></urlset>"
+                self.content = self.text.encode("utf-8")
+            elif url.endswith("page-2"):
+                self.text = '<html><head><title>From sitemap</title></head><body><p>Second</p></body></html>'
+                self.content = self.text.encode("utf-8")
+            elif url.endswith("robots.txt"):
+                self.text = "User-agent: *\nAllow: /"
+                self.content = self.text.encode("utf-8")
+            else:
+                self.text = '<html><head><title>Seed page</title></head><body><p>Seed</p></body></html>'
+                self.content = self.text.encode("utf-8")
+
+        def raise_for_status(self):
+            return None
+
+    def fake_get(url, timeout=10, headers=None):
+        return FakeResponse(url)
+
+    snapshot, pages = crawl_site("https://www.uc3m.es/", page_cap=3, fetch=fake_get)
+
+    assert snapshot.base_url == "https://www.uc3m.es/"
+    assert len(pages) == 2
+    assert pages[0].url == "https://www.uc3m.es/"
+    assert pages[1].url == "https://www.uc3m.es/page-2"
+
+
+def test_crawl_site_skips_timed_out_seed_page_and_continues():
+    class FakeResponse:
+        def __init__(self, url: str):
+            self.status_code = 200
+            self.headers = {"content-type": "text/html; charset=utf-8"}
+            self.url = url
+            if url.endswith("sitemap.xml"):
+                self.text = "<urlset><url><loc>https://www.uc3m.es/page-2</loc></url></urlset>"
+                self.content = self.text.encode("utf-8")
+            elif url.endswith("page-2"):
+                self.text = '<html><head><title>From sitemap</title></head><body><p>Second</p></body></html>'
+                self.content = self.text.encode("utf-8")
+            elif url.endswith("robots.txt"):
+                self.text = "User-agent: *\nAllow: /"
+                self.content = self.text.encode("utf-8")
+            else:
+                self.text = '<html><head><title>Seed page</title></head><body><p>Seed</p></body></html>'
+                self.content = self.text.encode("utf-8")
+
+        def raise_for_status(self):
+            return None
+
+    def fake_get(url, timeout=10, headers=None):
+        if url == "https://www.uc3m.es/":
+            raise requests.ReadTimeout("timed out")
+        return FakeResponse(url)
+
+    snapshot, pages = crawl_site("https://www.uc3m.es/", page_cap=2, fetch=fake_get)
+
+    assert snapshot.base_url == "https://www.uc3m.es/"
+    assert len(pages) == 1
+    assert pages[0].url == "https://www.uc3m.es/page-2"

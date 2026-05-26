@@ -31,12 +31,26 @@ def should_follow_url(base_url: str, candidate_url: str) -> bool:
     return candidate.scheme in {"http", "https"} and candidate.netloc == base.netloc
 
 
+def _crawl_key(base_url: str, candidate_url: str) -> str:
+    base = urlparse(base_url)
+    candidate = urlparse(candidate_url)
+    path = candidate.path or "/"
+    if path != "/":
+        path = path.rstrip("/") or "/"
+    return candidate._replace(scheme=base.scheme, netloc=candidate.netloc.lower(), path=path, fragment="").geturl()
+
+
 def extract_html_document(html: str, url: str) -> ExtractedDocument:
     soup = BeautifulSoup(html, "html.parser")
     title = soup.title.get_text(" ", strip=True) if soup.title else None
     for tag in soup(["script", "style", "noscript"]):
         tag.decompose()
-    text = soup.get_text(" ", strip=True)
+    text_parts = [soup.get_text(" ", strip=True)]
+    for selector in (("meta", {"name": "description"}), ("meta", {"property": "og:description"})):
+        meta = soup.find(*selector)
+        if meta and meta.get("content"):
+            text_parts.append(meta["content"].strip())
+    text = " ".join(part for part in dict.fromkeys(part for part in text_parts if part)).strip()
     return ExtractedDocument(url=url, content_type="text/html", title=title, text=text)
 
 
@@ -58,7 +72,10 @@ def discover_urls(base_url: str, html: str) -> list[str]:
 
 def fetch_sitemap_urls(base_url: str, fetch=requests.get) -> list[str]:
     sitemap_url = urljoin(base_url, "/sitemap.xml")
-    response = fetch(sitemap_url, timeout=10, headers={"User-Agent": "IncluScan/0.1"})
+    try:
+        response = fetch(sitemap_url, timeout=10, headers={"User-Agent": "IncluScan/0.1"})
+    except requests.RequestException:
+        return []
     if response.status_code >= 400:
         return []
     try:
@@ -90,21 +107,31 @@ def crawl_site(
         pass
 
     sitemap_urls = fetch_sitemap_urls(base_url, fetch=fetch)
-    queue = deque(dict.fromkeys([base_url, *sitemap_urls]))
+    queue = deque()
+    queued_keys: set[str] = set()
+    for candidate_url in [base_url, *sitemap_urls]:
+        key = _crawl_key(base_url, candidate_url)
+        if key not in queued_keys:
+            queue.append(candidate_url)
+            queued_keys.add(key)
     seen: set[str] = set()
     pages: list[ScrapedPage] = []
 
     while queue and len(pages) < page_cap:
         current_url = queue.popleft()
-        if current_url in seen or not should_follow_url(base_url, current_url):
+        current_key = _crawl_key(base_url, current_url)
+        if current_key in seen or not should_follow_url(base_url, current_url):
             continue
         if not robot_parser.can_fetch("IncluScan/0.1", current_url):
-            seen.add(current_url)
+            seen.add(current_key)
             continue
 
-        seen.add(current_url)
-        response = fetch(current_url, timeout=10, headers={"User-Agent": "IncluScan/0.1"})
-        response.raise_for_status()
+        seen.add(current_key)
+        try:
+            response = fetch(current_url, timeout=10, headers={"User-Agent": "IncluScan/0.1"})
+            response.raise_for_status()
+        except requests.RequestException:
+            continue
 
         content_type = response.headers.get("content-type", "")
         if "pdf" in content_type.lower() or current_url.lower().endswith(".pdf"):
@@ -119,8 +146,10 @@ def crawl_site(
             document = extract_html_document(response.text, current_url)
             if allow_extended:
                 for discovered_url in discover_urls(current_url, response.text):
-                    if discovered_url not in seen:
+                    discovered_key = _crawl_key(base_url, discovered_url)
+                    if discovered_key not in seen and discovered_key not in queued_keys:
                         queue.append(discovered_url)
+                        queued_keys.add(discovered_key)
 
         pages.append(
             ScrapedPage(
