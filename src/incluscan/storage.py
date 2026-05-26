@@ -20,3 +20,8 @@ def read_snapshot(path: Path) -> tuple[SnapshotMetadata, list[ScrapedPage]]:
     snapshot = SnapshotMetadata(**json.loads(lines[0]))
     pages = [ScrapedPage(**json.loads(line)) for line in lines[1:]]
     return snapshot, pages
+
+
+def read_snapshot_metadata(path: Path) -> SnapshotMetadata:
+    first_line = path.read_text(encoding="utf-8").splitlines()[0]
+    return SnapshotMetadata(**json.loads(first_line))

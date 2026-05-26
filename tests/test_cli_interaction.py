@@ -1,0 +1,108 @@
+from incluscan.cli import choose_from_options, choose_text
+from incluscan.models import SnapshotMetadata
+
+
+def test_choose_from_options_uses_questionary_select(monkeypatch):
+    calls = []
+
+    class FakePrompt:
+        def ask(self):
+            calls.append("ask")
+            return "Scanner"
+
+    def fake_select(message, choices, default=None, **kwargs):
+        calls.append((message, tuple(choices), default, kwargs))
+        return FakePrompt()
+
+    monkeypatch.setattr("incluscan.cli.questionary.select", fake_select)
+
+    result = choose_from_options("Choose mode", ["Scrapper", "Scanner"], default="Scrapper")
+
+    assert result == "Scanner"
+    assert calls == [("Choose mode", ("Scrapper", "Scanner"), "Scrapper", {}), "ask"]
+
+
+def test_choose_text_uses_questionary_text(monkeypatch):
+    calls = []
+
+    class FakePrompt:
+        def ask(self):
+            calls.append("ask")
+            return "https://www.uc3m.es/"
+
+    def fake_text(message, default=None):
+        calls.append((message, default))
+        return FakePrompt()
+
+    monkeypatch.setattr("incluscan.cli.questionary.text", fake_text)
+
+    result = choose_text("Base URL")
+
+    assert result == "https://www.uc3m.es/"
+    assert calls == [("Base URL", None), "ask"]
+
+
+def test_choose_text_omits_default_when_not_provided(monkeypatch):
+    calls = []
+
+    class FakePrompt:
+        def ask(self):
+            calls.append("ask")
+            return "https://www.uc3m.es/"
+
+    def fake_text(message, **kwargs):
+        calls.append((message, kwargs))
+        return FakePrompt()
+
+    monkeypatch.setattr("incluscan.cli.questionary.text", fake_text)
+
+    result = choose_text("Base URL")
+
+    assert result == "https://www.uc3m.es/"
+    assert calls == [("Base URL", {}), "ask"]
+
+
+def test_format_snapshot_label_shows_base_url_and_friendly_date():
+    snapshot = SnapshotMetadata(
+        snapshot_id="snapshot-453f5211",
+        base_url="https://www.uc3m.es/",
+        fetched_at="2026-05-26T10:00:03.791181+00:00",
+    )
+
+    from incluscan.cli import format_snapshot_label
+
+    assert format_snapshot_label(snapshot, 42) == "UC3M — fetched 2026-05-26 10:00 (42 pages)"
+
+
+def test_scraper_prompt_helpers_include_explanations(monkeypatch):
+    calls = []
+
+    def fake_text(message, **kwargs):
+        calls.append((message, kwargs))
+
+        class FakePrompt:
+            def ask(self):
+                return "100"
+
+        return FakePrompt()
+
+    def fake_select(message, choices, default=None, **kwargs):
+        calls.append((message, tuple(choices), default, kwargs))
+
+        class FakePrompt:
+            def ask(self):
+                return "No"
+
+        return FakePrompt()
+
+    monkeypatch.setattr("incluscan.cli.questionary.text", fake_text)
+    monkeypatch.setattr("incluscan.cli.questionary.select", fake_select)
+
+    from incluscan.cli import prompt_page_cap, prompt_extended_crawl
+
+    assert prompt_page_cap() == 100
+    assert prompt_extended_crawl() is False
+    assert calls[0][0] == "Page cap"
+    assert calls[0][1]["instruction"] == "Maximum number of pages to fetch before stopping."
+    assert calls[1][0].startswith("Enable extended crawl overrides?")
+    assert "Follow extra in-site links beyond sitemap discovery for deeper coverage." in calls[1][0]
