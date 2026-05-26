@@ -2,6 +2,7 @@ from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime, timezone
 import json
+import re
 from uuid import uuid4
 
 import requests
@@ -15,8 +16,18 @@ def build_review_prompt(content: str) -> str:
     return template.replace("{{content}}", content)
 
 
+def _extract_json_payload(raw_text: str) -> str:
+    stripped = raw_text.strip()
+    if stripped.startswith("[") and stripped.endswith("]"):
+        return stripped
+    match = re.search(r"\[.*\]", raw_text, flags=re.DOTALL)
+    if match:
+        return match.group(0)
+    return raw_text
+
+
 def parse_review_response(raw_text: str) -> list[ReviewFinding]:
-    payload = json.loads(raw_text)
+    payload = json.loads(_extract_json_payload(raw_text))
     if not isinstance(payload, list):
         raise ValueError("model response must be a JSON array")
 

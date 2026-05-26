@@ -90,7 +90,7 @@ def crawl_site(
         pass
 
     sitemap_urls = fetch_sitemap_urls(base_url, fetch=fetch)
-    queue = deque(sitemap_urls or [base_url])
+    queue = deque(dict.fromkeys([base_url, *sitemap_urls]))
     seen: set[str] = set()
     pages: list[ScrapedPage] = []
 

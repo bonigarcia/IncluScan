@@ -1,6 +1,7 @@
 import pytest
 import requests
 
+from incluscan.config import PROMPT_TEMPLATE_PATH
 from incluscan.scanner import build_review_prompt, parse_review_response, scan_snapshot
 from incluscan.models import ScrapedPage, SnapshotMetadata
 from incluscan.vendors import discover_vendors, list_models_for_vendor
@@ -39,6 +40,10 @@ def test_build_review_prompt_inserts_content_without_altering_template():
     assert "Hola a todos" in prompt
 
 
+def test_prompt_template_is_markdown_file():
+    assert PROMPT_TEMPLATE_PATH.name == "review_prompt.md"
+
+
 def test_parse_review_response_accepts_empty_array():
     assert parse_review_response("[]") == []
 
@@ -46,6 +51,15 @@ def test_parse_review_response_accepts_empty_array():
 def test_parse_review_response_rejects_extra_fields():
     with pytest.raises(ValueError):
         parse_review_response('[{"original":"x","modified":"y","justification":"z","extra":"no"}]')
+
+
+def test_parse_review_response_extracts_json_from_wrapped_text():
+    raw = "Sure, here you go:\n```json\n[{\"original\":\"los alumnos\",\"modified\":\"el estudiantado\",\"justification\":\"Neutraliza el lenguaje de género\"}]\n```"
+
+    findings = parse_review_response(raw)
+
+    assert len(findings) == 1
+    assert findings[0].modified == "el estudiantado"
 
 
 def test_scan_snapshot_uses_an_injected_completion_callable():
