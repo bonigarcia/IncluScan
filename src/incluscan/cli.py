@@ -103,7 +103,7 @@ def _choose_vendor(console: Console):
 
 
 def run_scraper(console: Console) -> None:
-    base_url = choose_text("Base URL")
+    base_url = choose_text("Base URL", default="https://www.uc3m.es/")
     if base_url is None:
         raise KeyboardInterrupt
     page_cap = prompt_page_cap()

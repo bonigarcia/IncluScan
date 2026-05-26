@@ -66,6 +66,26 @@ def test_choose_text_omits_default_when_not_provided(monkeypatch):
     assert calls == [("Base URL", {}), "ask"]
 
 
+def test_choose_text_passes_default_to_questionary_text(monkeypatch):
+    calls = []
+
+    class FakePrompt:
+        def ask(self):
+            calls.append("ask")
+            return "https://www.uc3m.es/"
+
+    def fake_text(message, default=None, **kwargs):
+        calls.append((message, default, kwargs))
+        return FakePrompt()
+
+    monkeypatch.setattr("incluscan.cli.questionary.text", fake_text)
+
+    result = choose_text("Base URL", default="https://www.uc3m.es/")
+
+    assert result == "https://www.uc3m.es/"
+    assert calls == [("Base URL", "https://www.uc3m.es/", {}) , "ask"]
+
+
 def test_prompt_choice_returns_none_when_cancelled(monkeypatch):
     class FakePrompt:
         def ask(self):
@@ -141,6 +161,27 @@ def test_run_scraper_wraps_work_with_spinners(monkeypatch):
     run_scraper(FakeConsole())
 
     assert events == ["Crawling site", "Writing snapshot"]
+
+
+def test_run_scraper_uses_default_base_url(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr("incluscan.cli.choose_text", lambda message, default=None: calls.append((message, default)) or "https://www.uc3m.es/")
+    monkeypatch.setattr("incluscan.cli.prompt_page_cap", lambda: 100)
+    monkeypatch.setattr("incluscan.cli.prompt_extended_crawl", lambda: False)
+    monkeypatch.setattr("incluscan.cli.crawl_site", lambda *args, **kwargs: ("snapshot", ["page"]))
+    monkeypatch.setattr("incluscan.cli.write_snapshot", lambda *args, **kwargs: Path("docs/snapshots/snapshot.jsonl"))
+    monkeypatch.setattr("incluscan.cli.run_with_spinner", lambda console, message, fn: fn())
+
+    class FakeConsole:
+        def print(self, *_args, **_kwargs):
+            return None
+
+    from incluscan.cli import run_scraper
+
+    run_scraper(FakeConsole())
+
+    assert calls == [("Base URL", "https://www.uc3m.es/")]
 
 
 def test_run_scanner_wraps_work_with_spinners(monkeypatch):
