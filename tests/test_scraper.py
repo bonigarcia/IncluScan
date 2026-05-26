@@ -140,7 +140,7 @@ def test_crawl_site_deduplicates_equivalent_root_urls():
     def fake_get(url, timeout=10, headers=None):
         return FakeResponse(url)
 
-    snapshot, pages = crawl_site("https://www.uc3m.es/", page_cap=3, fetch=fake_get)
+    snapshot, pages = crawl_site("https://www.uc3m.es/", page_cap=4, fetch=fake_get)
 
     assert snapshot.base_url == "https://www.uc3m.es/"
     assert len(pages) == 2
@@ -182,7 +182,7 @@ def test_crawl_site_skips_timed_out_seed_page_and_continues():
     assert pages[0].url == "https://www.uc3m.es/page-2"
 
 
-def test_crawl_site_deduplicates_case_variant_paths():
+def test_crawl_site_keeps_case_variant_paths_separate():
     class FakeResponse:
         def __init__(self, url: str):
             self.status_code = 200
@@ -207,13 +207,14 @@ def test_crawl_site_deduplicates_case_variant_paths():
     def fake_get(url, timeout=10, headers=None):
         return FakeResponse(url)
 
-    snapshot, pages = crawl_site("https://www.uc3m.es/", page_cap=3, fetch=fake_get)
+    snapshot, pages = crawl_site("https://www.uc3m.es/", page_cap=4, fetch=fake_get)
 
     assert snapshot.base_url == "https://www.uc3m.es/"
-    assert len(pages) == 3
+    assert len(pages) == 4
     assert pages[0].url == "https://www.uc3m.es/"
-    assert sum(page.url.lower().endswith("/inicio") for page in pages) == 1
-    assert pages[2].url == "https://www.uc3m.es/page-2"
+    assert any(page.url == "http://www.uc3m.es/Inicio" for page in pages)
+    assert any(page.url == "http://www.uc3m.es/inicio" for page in pages)
+    assert any(page.url == "https://www.uc3m.es/page-2" for page in pages)
 
 
 def test_crawl_site_uses_final_redirected_url():
@@ -278,3 +279,34 @@ def test_crawl_site_ignores_desktop_query_variant():
     assert len(pages) == 2
     assert any(page.url == "https://www.uc3m.es/vida-universitaria" for page in pages)
     assert sum(page.url == "https://www.uc3m.es/vida-universitaria" for page in pages) == 1
+
+
+def test_crawl_site_skips_soft_404_error_pages():
+    class FakeResponse:
+        def __init__(self, url: str):
+            self.status_code = 200
+            self.headers = {"content-type": "text/html; charset=utf-8"}
+            self.url = url
+            if url.endswith("sitemap.xml"):
+                self.text = "<urlset><url><loc>https://www.uc3m.es/ss/Satellite/UC3MInstitucional/es/PortadaMiniSiteB/1371206944418/Becas_Alumni</loc></url><url><loc>https://www.uc3m.es/page-2</loc></url></urlset>"
+            elif url.endswith("Becas_Alumni"):
+                self.text = "<html><head><title>Parece que no existe en la web una página con esta dirección.</title></head><body><p>Parece que no existe en la web una página con esta dirección.</p><p>Pruebe a buscar en nuestro sitio web o a navegar por las principales secciones.</p></body></html>"
+            elif url.endswith("page-2"):
+                self.text = '<html><head><title>From sitemap</title></head><body><p>Second</p></body></html>'
+            elif url.endswith("robots.txt"):
+                self.text = "User-agent: *\nAllow: /"
+            else:
+                self.text = '<html><head><title>Seed</title></head><body><p>Seed</p></body></html>'
+            self.content = self.text.encode("utf-8")
+
+        def raise_for_status(self):
+            return None
+
+    def fake_get(url, timeout=10, headers=None):
+        return FakeResponse(url)
+
+    snapshot, pages = crawl_site("https://www.uc3m.es/", page_cap=3, fetch=fake_get)
+
+    assert snapshot.base_url == "https://www.uc3m.es/"
+    assert all("Becas_Alumni" not in page.url for page in pages)
+    assert any(page.url == "https://www.uc3m.es/page-2" for page in pages)

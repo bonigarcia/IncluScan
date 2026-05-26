@@ -8,6 +8,7 @@ from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 from uuid import uuid4
 from xml.etree import ElementTree
+import unicodedata
 
 import requests
 from bs4 import BeautifulSoup
@@ -42,9 +43,21 @@ def _normalize_crawl_url(candidate_url: str):
     path = candidate.path or "/"
     if path != "/":
         path = path.rstrip("/") or "/"
-        path = path.lower()
     query = [(key, value) for key, value in parse_qsl(candidate.query, keep_blank_values=True) if not (key == "d" and value == "Desktop")]
     return candidate._replace(path=path, query=urlencode(query, doseq=True), fragment="", netloc=candidate.netloc.lower())
+
+
+def _strip_accents(text: str) -> str:
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
+
+def _is_soft_404_document(document: ExtractedDocument) -> bool:
+    content = " ".join(part for part in [document.title, document.text] if part)
+    normalized = _strip_accents(content).lower()
+    return (
+        "parece que no existe en la web una pagina con esta direccion" in normalized
+        or "pruebe a buscar en nuestro sitio web o a navegar por las principales secciones" in normalized
+    )
 
 
 def extract_html_document(html: str, url: str) -> ExtractedDocument:
@@ -159,6 +172,8 @@ def crawl_site(
                 temp_pdf.unlink(missing_ok=True)
         else:
             document = extract_html_document(response.text, final_url)
+            if _is_soft_404_document(document):
+                continue
             if allow_extended:
                 for discovered_url in discover_urls(final_url, response.text):
                     discovered_key = _crawl_key(base_url, discovered_url)
