@@ -1,4 +1,6 @@
-from incluscan.cli import choose_from_options, choose_text
+import pytest
+
+from incluscan.cli import choose_from_options, choose_text, prompt_choice
 from incluscan.models import SnapshotMetadata
 
 
@@ -60,6 +62,16 @@ def test_choose_text_omits_default_when_not_provided(monkeypatch):
 
     assert result == "https://www.uc3m.es/"
     assert calls == [("Base URL", {}), "ask"]
+
+
+def test_prompt_choice_returns_none_when_cancelled(monkeypatch):
+    class FakePrompt:
+        def ask(self):
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr("incluscan.cli.questionary.select", lambda *args, **kwargs: FakePrompt())
+
+    assert prompt_choice("Choose mode", ["Scrapper", "Scanner"], default="Scrapper") is None
 
 
 def test_format_snapshot_label_shows_base_url_and_friendly_date():

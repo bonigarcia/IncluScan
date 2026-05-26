@@ -16,31 +16,48 @@ from incluscan.vendors import discover_vendors, list_models_for_vendor
 
 
 def choose_from_options(message: str, choices: list[str], default: str | None = None) -> str:
-    return questionary.select(message, choices=choices, default=default).ask()
+    return prompt_choice(message, choices, default=default)
 
 
 def choose_text(message: str, default: str | None = None) -> str:
+    return prompt_input(message, default=default)
+
+
+def prompt_choice(message: str, choices: list[str], default: str | None = None) -> str | None:
+    try:
+        return questionary.select(message, choices=choices, default=default).ask()
+    except (KeyboardInterrupt, EOFError):
+        return None
+
+
+def prompt_input(message: str, default: str | None = None, **kwargs) -> str | None:
     if default is None:
-        return questionary.text(message).ask()
-    return questionary.text(message, default=default).ask()
+        try:
+            return questionary.text(message, **kwargs).ask()
+        except (KeyboardInterrupt, EOFError):
+            return None
+    try:
+        return questionary.text(message, default=default, **kwargs).ask()
+    except (KeyboardInterrupt, EOFError):
+        return None
 
 
 def prompt_page_cap() -> int:
-    return int(
-        questionary.text(
-            "Page cap",
-            instruction="Maximum number of pages to fetch before stopping.",
-            default="100",
-        ).ask()
+    value = prompt_input(
+        "Page cap",
+        default="100",
+        instruction="Maximum number of pages to fetch before stopping.",
     )
+    return int(value) if value is not None else 100
 
 
 def prompt_extended_crawl() -> bool:
-    return questionary.select(
+    value = prompt_choice(
         "Enable extended crawl overrides?\nFollow extra in-site links beyond sitemap discovery for deeper coverage.",
-        choices=["No", "Yes"],
+        ["No", "Yes"],
         default="No",
-    ).ask() == "Yes"
+    )
+    return value == "Yes"
 
 
 def format_snapshot_label(snapshot, page_count: int) -> str:
@@ -53,7 +70,7 @@ def format_snapshot_label(snapshot, page_count: int) -> str:
 
 
 def ask_mode(console: Console) -> str:
-    return choose_from_options("Choose mode", ["Scrapper", "Scanner"], default="Scrapper")
+    return choose_from_options("Choose mode", ["Scrapper", "Scanner"], default="Scrapper") or "Scrapper"
 
 
 def _choose_snapshot_path(console: Console) -> Path:
@@ -66,6 +83,8 @@ def _choose_snapshot_path(console: Console) -> Path:
         page_count = max(len(path.read_text(encoding="utf-8").splitlines()) - 1, 0)
         labeled_snapshots.append((format_snapshot_label(snapshot, page_count), str(path)))
     selected = choose_from_options("Choose snapshot", [label for label, _ in labeled_snapshots])
+    if selected is None:
+        raise KeyboardInterrupt
     selected = next(path for label, path in labeled_snapshots if label == selected)
     return Path(selected)
 
@@ -75,6 +94,8 @@ def _choose_vendor(console: Console):
     if not vendors:
         raise RuntimeError("No AI vendors available.")
     vendor_name = choose_from_options("Choose vendor", [vendor.name for vendor in vendors])
+    if vendor_name is None:
+        raise KeyboardInterrupt
     vendor = next(item for item in vendors if item.name == vendor_name)
     api_key = os.getenv(vendor.api_key_env) if vendor.api_key_env else None
     return vendor.name, api_key
@@ -82,6 +103,8 @@ def _choose_vendor(console: Console):
 
 def run_scraper(console: Console) -> None:
     base_url = choose_text("Base URL")
+    if base_url is None:
+        raise KeyboardInterrupt
     page_cap = prompt_page_cap()
     allow_extended = prompt_extended_crawl()
     snapshot, pages = crawl_site(base_url, page_cap=page_cap, allow_extended=allow_extended)
@@ -98,6 +121,8 @@ def run_scanner(console: Console) -> None:
     if not models:
         raise RuntimeError(f"No models available for {vendor_name}.")
     model = choose_from_options("Choose model", models)
+    if model is None:
+        raise KeyboardInterrupt
 
     request_completion = build_request_completion(vendor_name, model, api_key=api_key)
     scan, findings_by_url = scan_snapshot(snapshot, pages, request_completion, vendor_name, model)
@@ -108,9 +133,13 @@ def run_scanner(console: Console) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     console = Console()
-    mode = ask_mode(console)
-    if mode == "Scrapper":
-        run_scraper(console)
-    else:
-        run_scanner(console)
-    return 0
+    try:
+        mode = ask_mode(console)
+        if mode == "Scrapper":
+            run_scraper(console)
+        else:
+            run_scanner(console)
+        return 0
+    except KeyboardInterrupt:
+        console.print("Cancelled.")
+        return 1
