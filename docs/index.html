@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>IncluScan Reports</title><style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f7f7f8; color: #1f2937; }
+    .page { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .card { background: white; border: 1px solid #e5e7eb; border-radius: 14px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .list { display: grid; gap: 16px; }
+    .entry { display: grid; gap: 8px; }
+    .entry h1, .entry h2 { margin: 0; }
+    .meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.92rem; color: #4b5563; }
+    .badge { display: inline-block; background: #eef2ff; color: #3730a3; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; }
+    .muted { color: #6b7280; }
+    .url-list a { display: inline-block; margin-right: 8px; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; }
+    .section { margin-top: 18px; }
+    .finding-empty { padding: 12px; color: #6b7280; font-style: italic; }
+    .summary-list { margin: 12px 0 0; padding-left: 18px; }
+    .summary-list li { margin: 4px 0; }
+    .run-title { margin: 0; font-size: 1.35rem; line-height: 1.2; }
+    .run-model { margin: 2px 0 0; font-size: 1.7rem; line-height: 1.15; font-weight: 700; }
+    .run-details { display: grid; gap: 8px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    </style></head>
+<body>
+  <main class="page">
+    <header class="card">
+      <h1>IncluScan Reports</h1>
+      <p class="muted">Historical scan runs and their findings.</p>
+    </header>
+    <section class="list"><article class="card entry">
+              <p class="run-title">1. https://www.uc3m.es/ - May 26, 2026, 01:44 PM</p>
+              <span>Google gemini-3.1-flash-lite</span>
+              <span class="muted">10 pages analyzed - 16 findings - 11s</span>
+              <span><a href="runs/scan-fe361228/index.html">Scan report</a></span>
+            </article><article class="card entry">
+              <p class="run-title">2. https://www.uc3m.es/ - May 26, 2026, 01:44 PM</p>
+              <span>Google gemini-2.5-flash</span>
+              <span class="muted">10 pages analyzed - 2 findings - 1m 18s</span>
+              <span><a href="runs/scan-cf5d0194/index.html">Scan report</a></span>
+            </article><article class="card entry">
+              <p class="run-title">3. https://www.uc3m.es/ - May 26, 2026, 01:44 PM</p>
+              <span>OpenAI gpt-5-mini</span>
+              <span class="muted">10 pages analyzed - 15 findings - 3m 12s</span>
+              <span><a href="runs/scan-c6e24d4e/index.html">Scan report</a></span>
+            </article><article class="card entry">
+              <p class="run-title">4. https://www.uc3m.es/ - May 26, 2026, 01:44 PM</p>
+              <span>OpenAI gpt-5.4-mini</span>
+              <span class="muted">10 pages analyzed - 16 findings - 17s</span>
+              <span><a href="runs/scan-6c1cc2d7/index.html">Scan report</a></span>
+            </article></section>
+  </main>
+</body>
+</html>
