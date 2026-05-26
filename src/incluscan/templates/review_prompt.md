@@ -1,12 +1,7 @@
-Review the language used in the following content to promote inclusive and non-sexist language.
-
-Return the response exclusively as valid JSON that can be parsed automatically. Do not include Markdown, code blocks, introductory text, or the word JSON.
-
-The response must be an array of objects. Each object must contain exactly these fields:
-
+Review the language used in the following content to promote inclusive and non-sexist language. Return the response exclusively as valid JSON that can be parsed automatically. The response must be an array of objects. Each object must contain exactly these fields:
 - "original": the exact fragment from the original text that should be changed.
 - "modified": the adapted version using inclusive and non-sexist language.
-- "justification": a brief explanation of why the change was made.
+- "justification": a brief explanation of why the change was made, in the same language as the original text.
 
 Rules:
 - Preserve the original meaning.

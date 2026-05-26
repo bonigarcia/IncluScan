@@ -16,6 +16,12 @@ def build_review_prompt(content: str) -> str:
     return template.replace("{{content}}", content)
 
 
+def build_page_review_content(page: ScrapedPage) -> str:
+    if page.title and page.title not in page.text:
+        return f"{page.title}\n\n{page.text}"
+    return page.text
+
+
 def _extract_json_payload(raw_text: str) -> str:
     stripped = raw_text.strip()
     if stripped.startswith("[") and stripped.endswith("]"):
@@ -106,7 +112,7 @@ def scan_snapshot(
     spinner = with_spinner or (lambda _message, fn: fn())
 
     for page in pages:
-        prompt = build_review_prompt(page.text)
+        prompt = build_review_prompt(build_page_review_content(page))
         parsed_findings: list[ReviewFinding] = []
         for attempt in range(2):
             current_prompt = prompt if attempt == 0 else f"{prompt}\n\nReturn only valid JSON that matches the required schema."

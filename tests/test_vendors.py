@@ -168,3 +168,34 @@ def test_scan_snapshot_uses_spinner_for_each_page():
     assert messages == ["Analyzing https://www.uc3m.es/1", "Analyzing https://www.uc3m.es/2"]
     assert findings[page_one.url] == []
     assert findings[page_two.url] == []
+
+
+def test_scan_snapshot_includes_page_title_in_prompt():
+    snapshot = SnapshotMetadata(
+        snapshot_id="snapshot-001",
+        base_url="https://www.uc3m.es/",
+        fetched_at="2026-05-26T10:00:00Z",
+    )
+    page = ScrapedPage(
+        snapshot_id=snapshot.snapshot_id,
+        url="https://www.uc3m.es/",
+        fetched_at=snapshot.fetched_at,
+        content_type="text/html",
+        title="Estudiantes de la Unión Europea | UC3M",
+        text="Contacta con nosotros",
+        language_hint="es",
+        status_code=200,
+        crawl_depth=0,
+        source_type="seed",
+    )
+
+    prompts: list[str] = []
+
+    def fake_completion(prompt: str):
+        prompts.append(prompt)
+        return "[]", None, None
+
+    scan_snapshot(snapshot, [page], fake_completion, "Google", "gemini-2.5-flash")
+
+    assert "Estudiantes de la Unión Europea | UC3M" in prompts[0]
+    assert "Contacta con nosotros" in prompts[0]

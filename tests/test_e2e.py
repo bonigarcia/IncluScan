@@ -36,7 +36,7 @@ def test_end_to_end_scan_smoke(tmp_path: Path):
     assert findings_by_url[page.url] == []
 
     run_html = "<html><body><h1>Ollama gemma3:4b</h1></body></html>"
-    write_reports(tmp_path / "docs", [run], {run.scan_id: run_html})
+    write_reports(tmp_path / "docs", [run], {run.scan_id: run_html}, {run.scan_id: 0}, {run.scan_id: 1})
 
     assert (tmp_path / "docs" / "index.html").exists()
     assert (tmp_path / "docs" / "runs" / run.scan_id / "index.html").exists()

@@ -8,31 +8,37 @@ def test_build_index_page_includes_dashboard_layout_and_run_link():
         snapshot_id="snapshot-001",
         base_url="https://www.uc3m.es/",
         snapshot_fetched_at="2026-05-26T10:00:00Z",
-        vendor="OpenAI",
-        model="gpt-4o-mini",
+        vendor="Google",
+        model="gemini-2.5-flash",
         started_at="2026-05-26T11:00:00Z",
         finished_at="2026-05-26T11:05:00Z",
         input_tokens=123,
         output_tokens=45,
     )
 
-    html = build_index_page([run], run_finding_counts={"scan-001": 4})
+    html = build_index_page([run], run_finding_counts={"scan-001": 4}, run_page_counts={"scan-001": 9})
 
     assert "IncluScan Reports" in html
-    assert "scan-001" in html
+    assert "Google gemini-2.5-flash" in html
+    assert "May 26, 2026" in html
+    assert "10:00 AM" in html
+    assert "https://www.uc3m.es/" in html
+    assert "9 pages analyzed" in html
+    assert "Scan report" in html
     assert "4 findings" in html
     assert "runs/scan-001/index.html" in html
     assert "<style>" in html
+    assert "card entry" in html
 
 
-def test_build_run_page_includes_anchors_and_findings_table():
+def test_build_run_page_shows_total_page_count_and_hidden_url_list():
     scan = ScanRunSummary(
         scan_id="scan-001",
         snapshot_id="snapshot-001",
         base_url="https://www.uc3m.es/",
         snapshot_fetched_at="2026-05-26T10:00:00Z",
-        vendor="OpenAI",
-        model="gpt-4o-mini",
+        vendor="Google",
+        model="gemini-2.5-flash",
         started_at="2026-05-26T11:00:00Z",
         finished_at="2026-05-26T11:05:00Z",
         input_tokens=123,
@@ -48,16 +54,46 @@ def test_build_run_page_includes_anchors_and_findings_table():
                     modified="el estudiantado",
                     justification="Neutraliza el lenguaje de género",
                 )
-            ]
+            ],
+            "https://www.uc3m.es/contacto": [],
         },
+        total_pages_analyzed=2,
     )
 
-    assert "#url-" in html
+    assert "2 pages analyzed" in html
+    assert "details" in html
+    assert "Analyzed URLs" in html
+    assert "https://www.uc3m.es/contacto" in html
+    assert "href=\"https://www.uc3m.es/\"" in html
+    assert "href=\"https://www.uc3m.es/contacto\"" not in html
     assert "id=\"url-" in html
+    assert "Scan report" not in html
+    assert "No changes found" not in html
+
+
+def test_build_run_page_includes_page_link_and_findings_table():
+    scan = ScanRunSummary(
+        scan_id="scan-001",
+        snapshot_id="snapshot-001",
+        base_url="https://www.uc3m.es/",
+        snapshot_fetched_at="2026-05-26T10:00:00Z",
+        vendor="OpenAI",
+        model="gpt-4o-mini",
+        started_at="2026-05-26T11:00:00Z",
+        finished_at="2026-05-26T11:05:00Z",
+        input_tokens=123,
+        output_tokens=45,
+    )
+
+    html = build_run_page(scan=scan, findings_by_url={"https://www.uc3m.es/": [ReviewFinding(original="los alumnos", modified="el estudiantado", justification="Neutraliza el lenguaje de género")]}, total_pages_analyzed=1)
+
+    assert "id=\"url-" in html
+    assert "href=\"https://www.uc3m.es/\"" in html
     assert "los alumnos" in html
     assert "el estudiantado" in html
     assert "Neutraliza el lenguaje de género" in html
     assert "<style>" in html
+    assert "No changes found" not in html
 
 
 def test_build_run_page_shows_empty_state_for_missing_findings():
@@ -77,3 +113,4 @@ def test_build_run_page_shows_empty_state_for_missing_findings():
     html = build_run_page(scan=scan, findings_by_url={"https://www.uc3m.es/": []})
 
     assert "No changes found" in html
+    assert "<p class=\"muted\">0 findings</p>" not in html
