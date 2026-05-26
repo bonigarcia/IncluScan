@@ -14,33 +14,74 @@ Run it with:
 python -m incluscan
 ```
 
-### Scrapper
+### Example: Scrapper
 
-The scraper is conservative by default:
+The Scrapper crawls a site and saves a JSONL snapshot under `docs/snapshots/`.
 
-- same-domain crawling only
-- `sitemap.xml` preferred when available
-- `robots.txt` respected
-- default page cap and polite delay
-- HTML pages and PDFs with embedded text supported
+```text
+$ python -m incluscan
+? Choose mode Scrapper
+? Base URL https://www.uc3m.es/
+? Page cap  Maximum number of pages to fetch before stopping. 10
+? Enable extended crawl overrides? Yes
+```
 
-Results are written to `docs/snapshots/` as JSONL snapshots.
+What these choices mean:
 
-### Scanner
+- `Base URL`: the site to crawl.
+- `Page cap`: the maximum number of pages to save in the snapshot.
+- `Enable extended crawl overrides?`: follow extra same-site links beyond the sitemap for deeper coverage.
 
-The scanner supports these vendors when available:
+Example output:
 
-- OpenAI via `OPENAI_API_KEY`
-- Anthropic via `ANTHROPIC_API_KEY`
-- Google via `GOOGLE_API_KEY`
-- Ollama at `http://localhost:11434`
+```text
+Crawling site
+Writing snapshot
+Saved snapshot to docs/snapshots/snapshot-896b0cf0.jsonl
+```
 
-For each scan, the CLI lists available vendors and models, then analyzes each page in its original language.
+The JSONL file contains one snapshot record plus one line per crawled page.
 
-Reports are written to `docs/` as static HTML:
+### Example: Scanner
 
-- `docs/index.html` for the scan history
-- `docs/runs/<scan_id>/index.html` for a scan run
+The Scanner loads a saved snapshot, lets you choose a vendor and model, then analyzes each page.
+
+```text
+$ python -m incluscan
+? Choose mode Scanner
+? Choose snapshot snapshot-896b0cf0.jsonl - www.uc3m.es - fetched May 26, 2026, 1:25 PM (8 pages)
+? Choose vendor Google
+? Choose model gemini-2.5-flash
+```
+
+What these choices mean:
+
+- `Choose snapshot`: pick the crawl you want to analyze.
+- `Choose vendor`: select the model provider.
+- `Choose model`: select the model that will review the pages.
+
+Example output:
+
+```text
+Loading snapshot
+Analyzing https://www.uc3m.es/
+Analyzing https://www.uc3m.es/grado
+Generating report
+Writing reports
+Wrote report for scan-001
+```
+
+The scanner writes two static HTML reports:
+
+- `docs/index.html`: the scan history with one card per scan.
+- `docs/runs/<scan_id>/index.html`: the individual scan report.
+
+### Details
+
+- The Scrapper is conservative by default: same-domain only, `sitemap.xml` preferred when available, `robots.txt` respected, with a default page cap and polite delay.
+- The Scrapper supports HTML pages and PDFs with embedded text.
+- The Scanner supports OpenAI, Anthropic, Google, and Ollama when the relevant API key or local service is available.
+- Each scan analyzes pages in the original language and writes static HTML reports under `docs/`.
 
 ## Architecture
 
