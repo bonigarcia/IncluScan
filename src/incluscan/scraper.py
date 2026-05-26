@@ -1,6 +1,7 @@
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from time import sleep
@@ -58,6 +59,12 @@ def _is_soft_404_document(document: ExtractedDocument) -> bool:
         "parece que no existe en la web una pagina con esta direccion" in normalized
         or "pruebe a buscar en nuestro sitio web o a navegar por las principales secciones" in normalized
     )
+
+
+def _document_signature(document: ExtractedDocument) -> str:
+    parts = [document.content_type, document.title or "", document.text or ""]
+    payload = "\n".join(parts).strip().encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def extract_html_document(html: str, url: str) -> ExtractedDocument:
@@ -129,6 +136,7 @@ def crawl_site(
     sitemap_urls = fetch_sitemap_urls(base_url, fetch=fetch)
     queue = deque()
     queued_keys: set[str] = set()
+    seen_documents: set[str] = set()
     for candidate_url in [base_url, *sitemap_urls]:
         key = _crawl_key(base_url, candidate_url)
         if key not in queued_keys:
@@ -180,6 +188,11 @@ def crawl_site(
                     if discovered_key not in seen and discovered_key not in queued_keys:
                         queue.append(discovered_url)
                         queued_keys.add(discovered_key)
+
+        document_signature = _document_signature(document)
+        if document_signature in seen_documents:
+            continue
+        seen_documents.add(document_signature)
 
         pages.append(
             ScrapedPage(

@@ -182,7 +182,7 @@ def test_crawl_site_skips_timed_out_seed_page_and_continues():
     assert pages[0].url == "https://www.uc3m.es/page-2"
 
 
-def test_crawl_site_keeps_case_variant_paths_separate():
+def test_crawl_site_deduplicates_case_variant_same_page():
     class FakeResponse:
         def __init__(self, url: str):
             self.status_code = 200
@@ -197,8 +197,11 @@ def test_crawl_site_keeps_case_variant_paths_separate():
             elif url.endswith("robots.txt"):
                 self.text = "User-agent: *\nAllow: /"
                 self.content = self.text.encode("utf-8")
+            elif url == "https://www.uc3m.es/":
+                self.text = '<html><head><title>Home</title></head><body><p>Seed</p></body></html>'
+                self.content = self.text.encode("utf-8")
             else:
-                self.text = '<html><head><title>Inicio</title></head><body><p>Home</p></body></html>'
+                self.text = '<html><head><title>Inicio</title></head><body><p>Campus</p></body></html>'
                 self.content = self.text.encode("utf-8")
 
         def raise_for_status(self):
@@ -210,10 +213,9 @@ def test_crawl_site_keeps_case_variant_paths_separate():
     snapshot, pages = crawl_site("https://www.uc3m.es/", page_cap=4, fetch=fake_get)
 
     assert snapshot.base_url == "https://www.uc3m.es/"
-    assert len(pages) == 4
+    assert len(pages) == 3
     assert pages[0].url == "https://www.uc3m.es/"
-    assert any(page.url == "http://www.uc3m.es/Inicio" for page in pages)
-    assert any(page.url == "http://www.uc3m.es/inicio" for page in pages)
+    assert sum(page.url.lower().endswith("/inicio") for page in pages) == 1
     assert any(page.url == "https://www.uc3m.es/page-2" for page in pages)
 
 
@@ -263,6 +265,8 @@ def test_crawl_site_ignores_desktop_query_variant():
                 self.text = "<urlset><url><loc>https://www.uc3m.es/vida-universitaria?d=Desktop</loc></url><url><loc>https://www.uc3m.es/vida-universitaria</loc></url></urlset>"
             elif url.endswith("robots.txt"):
                 self.text = "User-agent: *\nAllow: /"
+            elif url == "https://www.uc3m.es/":
+                self.text = '<html><head><title>Home</title></head><body><p>Seed</p></body></html>'
             else:
                 self.text = '<html><head><title>Vida universitaria</title></head><body><p>Campus life</p></body></html>'
             self.content = self.text.encode("utf-8")
