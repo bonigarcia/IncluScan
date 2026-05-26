@@ -5,7 +5,7 @@ An AI-powered tool to analyze websites and suggest inclusive, non-sexist languag
 
 IncluScan is a Python CLI with two modes:
 
-- `Scrapper`: crawl a site from a base URL and store page text as JSONL.
+- `Scrapper`: crawl a site from a base URL and store page text as JSONL (JSON Lines).
 - `Scanner`: load a saved snapshot and analyze each page with an AI model.
 
 Run it with:
@@ -14,6 +14,13 @@ Run it with:
 python -m incluscan
 ```
 
+### Details
+
+- The Scrapper is conservative by default: same-domain only, `sitemap.xml` preferred when available, `robots.txt` respected, with a default page cap and polite delay.
+- The Scrapper supports HTML pages and PDFs with embedded text.
+- The Scanner supports OpenAI, Anthropic, Google, and Ollama when the respective API key (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) or local service (`http://localhost:11434` for Ollama) is available.
+- Each scan analyzes pages in the original language and writes static HTML reports under `docs/`.
+
 ## Examples
 ### Scrapper
 
@@ -21,10 +28,16 @@ The Scrapper crawls a site and saves a JSONL snapshot under `docs/snapshots/`.
 
 ```text
 $ python -m incluscan
-? Choose mode Scrapper
+? Choose mode (Use arrow keys)
+ » Scrapper
+   Scanner
 ? Base URL https://www.uc3m.es/
 ? Page cap  Maximum number of pages to fetch before stopping. 10
-? Enable extended crawl overrides? Yes
+? Enable extended crawl overrides?
+Follow extra in-site links beyond sitemap discovery for deeper coverage. (Use arrow keys)
+   No
+ » Yes
+⠦ Crawling site
 ```
 
 What these choices mean:
@@ -38,7 +51,7 @@ Example output:
 ```text
 Crawling site
 Writing snapshot
-Saved snapshot to docs/snapshots/snapshot-896b0cf0.jsonl
+Saved snapshot to docs/snapshots/snapshot-005f3ea3.jsonl
 ```
 
 The JSONL file contains one snapshot record plus one line per crawled page.
@@ -49,10 +62,26 @@ The Scanner loads a saved snapshot, lets you choose a vendor and model, then ana
 
 ```text
 $ python -m incluscan
-? Choose mode Scanner
-? Choose snapshot snapshot-896b0cf0.jsonl - www.uc3m.es - fetched May 26, 2026, 1:25 PM (8 pages)
-? Choose provider Google
-? Choose model gemini-2.5-flash
+? Choose mode (Use arrow keys)
+   Scrapper
+ » Scanner
+? Choose snapshot (Use arrow keys)
+ » UC3M — fetched 2026-05-26 16:29 (200 pages)
+   UC3M — fetched 2026-05-26 13:44 (10 pages)
+? Choose provider (Use arrow keys)
+ » OpenAI
+   Anthropic
+   Google
+   Ollama
+? Choose model (Use arrow keys)
+ » gpt-4
+   gpt-4o
+   gpt-4o-mini
+   gpt-4.1
+   gpt-4.1-mini
+   gpt-4.1-nano
+   ...
+⠧ Analyzing https://www.uc3m.es/
 ```
 
 What these choices mean:
@@ -76,13 +105,6 @@ The scanner writes two static HTML reports:
 
 - `docs/index.html`: the scan history with one card per scan.
 - `docs/runs/<scan_id>/index.html`: the individual scan report.
-
-### Details
-
-- The Scrapper is conservative by default: same-domain only, `sitemap.xml` preferred when available, `robots.txt` respected, with a default page cap and polite delay.
-- The Scrapper supports HTML pages and PDFs with embedded text.
-- The Scanner supports OpenAI, Anthropic, Google, and Ollama when the relevant API key or local service is available.
-- Each scan analyzes pages in the original language and writes static HTML reports under `docs/`.
 
 ## Results
 The results of the scan are static HTML reports under `docs/`. The main `index.html` shows a card for each scan with metadata and a link to the individual report. Each individual report shows the pages analyzed, the issues found, and suggestions for improvement. These reports are available at this URL: https://bonigarcia.dev/IncluScan/
