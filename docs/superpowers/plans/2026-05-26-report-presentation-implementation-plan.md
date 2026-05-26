@@ -1,11 +1,122 @@
-from dataclasses import asdict
-import json
+# Report Presentation Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Replace the raw report HTML with styled, navigable pages that link scan runs to anchored URL sections and clearly present each finding.
+
+**Architecture:** Keep report generation inside `src/incluscan/report.py`, but split the HTML into two reusable renderers: one for the dashboard-style index and one for the run detail page with per-URL anchors. Compute counts from the existing `findings_by_url` structure so the CLI does not need new report state.
+
+**Tech Stack:** Python 3.11+, static HTML, embedded CSS, `pytest`
+
+---
+
+### Task 1: Add report rendering tests for styling and navigation
+
+**Files:**
+- Modify: `tests/test_report.py`
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+from incluscan.models import ReviewFinding, ScanRunSummary
+from incluscan.report import build_index_page, build_run_page
+
+
+def test_build_index_page_includes_dashboard_layout_and_run_link():
+    run = ScanRunSummary(
+        scan_id="scan-001",
+        snapshot_id="snapshot-001",
+        base_url="https://www.uc3m.es/",
+        snapshot_fetched_at="2026-05-26T10:00:00Z",
+        vendor="OpenAI",
+        model="gpt-4o-mini",
+        started_at="2026-05-26T11:00:00Z",
+        finished_at="2026-05-26T11:05:00Z",
+        input_tokens=123,
+        output_tokens=45,
+    )
+
+    html = build_index_page([run], run_finding_counts={"scan-001": 4})
+
+    assert "IncluScan Reports" in html
+    assert "scan-001" in html
+    assert "4 findings" in html
+    assert "runs/scan-001/index.html" in html
+    assert "<style>" in html
+
+
+def test_build_run_page_includes_anchors_and_findings_table():
+    scan = ScanRunSummary(
+        scan_id="scan-001",
+        snapshot_id="snapshot-001",
+        base_url="https://www.uc3m.es/",
+        snapshot_fetched_at="2026-05-26T10:00:00Z",
+        vendor="OpenAI",
+        model="gpt-4o-mini",
+        started_at="2026-05-26T11:00:00Z",
+        finished_at="2026-05-26T11:05:00Z",
+        input_tokens=123,
+        output_tokens=45,
+    )
+
+    html = build_run_page(
+        scan=scan,
+        findings_by_url={
+            "https://www.uc3m.es/": [
+                ReviewFinding(
+                    original="los alumnos",
+                    modified="el estudiantado",
+                    justification="Neutraliza el lenguaje de género",
+                )
+            ]
+        },
+    )
+
+    assert "href=\"#url-https-www-uc3m-es\"" in html or "#url-https-www-uc3m-es" in html
+    assert "id=\"url-https-www-uc3m-es\"" in html or "url-https-www-uc3m-es" in html
+    assert "los alumnos" in html
+    assert "el estudiantado" in html
+    assert "Neutraliza el lenguaje de género" in html
+    assert "<style>" in html
+
+
+def test_build_run_page_shows_empty_state_for_missing_findings():
+    scan = ScanRunSummary(
+        scan_id="scan-001",
+        snapshot_id="snapshot-001",
+        base_url="https://www.uc3m.es/",
+        snapshot_fetched_at="2026-05-26T10:00:00Z",
+        vendor="OpenAI",
+        model="gpt-4o-mini",
+        started_at="2026-05-26T11:00:00Z",
+        finished_at="2026-05-26T11:05:00Z",
+        input_tokens=123,
+        output_tokens=45,
+    )
+
+    html = build_run_page(scan=scan, findings_by_url={"https://www.uc3m.es/": []})
+
+    assert "No changes found" in html
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/test_report.py -q`
+
+Expected: fail because `build_index_page` does not accept finding counts and the HTML is still raw.
+
+- [ ] **Step 3: Write minimal implementation**
+
+```python
+# src/incluscan/report.py
 from html import escape
-from pathlib import Path
 from urllib.parse import quote
 
-from incluscan.models import ReviewFinding, ScanRunSummary
+from dataclasses import asdict
+import json
+from pathlib import Path
 
+from incluscan.models import ReviewFinding, ScanRunSummary
 
 def _report_css() -> str:
     return """<style>
@@ -27,10 +138,8 @@ def _report_css() -> str:
     a:hover { text-decoration: underline; }
     </style>"""
 
-
 def _url_anchor(url: str) -> str:
     return "url-" + quote(url, safe="").replace("%", "-").replace(".", "-")
-
 
 def build_index_page(runs: list[ScanRunSummary], run_finding_counts: dict[str, int] | None = None) -> str:
     run_finding_counts = run_finding_counts or {}
@@ -64,17 +173,6 @@ def build_index_page(runs: list[ScanRunSummary], run_finding_counts: dict[str, i
   </main>
 </body>
 </html>'''
-
-
-def load_run_summaries(report_root: Path) -> list[ScanRunSummary]:
-    runs: list[ScanRunSummary] = []
-    runs_dir = report_root / "runs"
-    if not runs_dir.exists():
-        return runs
-    for meta_path in sorted(runs_dir.glob("*/meta.json")):
-        runs.append(ScanRunSummary(**json.loads(meta_path.read_text(encoding="utf-8"))))
-    return runs
-
 
 def build_run_page(scan: ScanRunSummary, findings_by_url: dict[str, list[ReviewFinding]]) -> str:
     nav_items = []
@@ -123,22 +221,29 @@ def build_run_page(scan: ScanRunSummary, findings_by_url: dict[str, list[ReviewF
   </main>
 </body>
 </html>'''
+```
 
+- [ ] **Step 4: Run test to verify it passes**
 
-def write_reports(
-    report_root: Path,
-    runs: list[ScanRunSummary],
-    run_pages: dict[str, str] | None = None,
-    run_finding_counts: dict[str, int] | None = None,
-) -> None:
-    report_root.mkdir(parents=True, exist_ok=True)
-    for scan_id, html in (run_pages or {}).items():
-        run_dir = report_root / "runs" / scan_id
-        run_dir.mkdir(parents=True, exist_ok=True)
-        (run_dir / "index.html").write_text(html, encoding="utf-8")
-    for run in runs:
-        run_dir = report_root / "runs" / run.scan_id
-        run_dir.mkdir(parents=True, exist_ok=True)
-        (run_dir / "meta.json").write_text(json.dumps(asdict(run), ensure_ascii=False), encoding="utf-8")
-    all_runs = load_run_summaries(report_root)
-    (report_root / "index.html").write_text(build_index_page(all_runs, run_finding_counts=run_finding_counts), encoding="utf-8")
+Run: `pytest tests/test_report.py -q`
+
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/incluscan/report.py tests/test_report.py
+git commit -m "feat: style report pages and add navigation"
+```
+
+## Coverage Check
+- Styled dashboard index: Task 1.
+- Linked run details with URL anchors: Task 1.
+- Finding counts in the index: Task 1.
+- Empty-state handling for URLs without findings: Task 1.
+- The plan intentionally keeps per-URL pages out of scope to preserve the existing output shape.
+
+## Self-Review Notes
+- The plan covers the new CSS/styling requirement, the index-to-run navigation requirement, and the within-run URL navigation requirement.
+- The only shared data addition is finding counts passed to the index renderer; this does not affect the CLI or scanner.
+- Placeholder scan should be re-run during implementation because the report HTML helpers are intentionally shown as partial code blocks in the minimal implementation section.

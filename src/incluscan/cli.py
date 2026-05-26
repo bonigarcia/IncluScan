@@ -132,7 +132,8 @@ def run_scanner(console: Console) -> None:
     request_completion = build_request_completion(vendor_name, model, api_key=api_key)
     scan, findings_by_url = scan_snapshot(snapshot, pages, request_completion, vendor_name, model, with_spinner=lambda message, fn: run_with_spinner(console, message, fn))
     run_html = run_with_spinner(console, "Generating report", lambda: build_run_page(scan, findings_by_url))
-    run_with_spinner(console, "Writing reports", lambda: write_reports(REPORT_DIR, [scan], {scan.scan_id: run_html}))
+    finding_count = sum(len(findings) for findings in findings_by_url.values())
+    run_with_spinner(console, "Writing reports", lambda: write_reports(REPORT_DIR, [scan], {scan.scan_id: run_html}, {scan.scan_id: finding_count}))
     console.print(f"Wrote report for {scan.scan_id}")
 
 
