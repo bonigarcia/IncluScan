@@ -43,3 +43,4 @@ class ScanRunSummary:
     output_tokens: int | None = None
     finding_count: int | None = None
     page_count: int | None = None
+    duration_seconds: float | None = None

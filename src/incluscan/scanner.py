@@ -142,6 +142,7 @@ def scan_snapshot(
         findings_by_url[page.url] = parsed_findings
 
     finished_at = datetime.now(timezone.utc).isoformat()
+    duration_seconds = (datetime.fromisoformat(finished_at.replace("Z", "+00:00")) - datetime.fromisoformat(started_at.replace("Z", "+00:00"))).total_seconds()
     run = ScanRunSummary(
         scan_id=f"scan-{uuid4().hex[:8]}",
         snapshot_id=snapshot.snapshot_id,
@@ -153,5 +154,6 @@ def scan_snapshot(
         finished_at=finished_at,
         input_tokens=input_tokens if saw_tokens else None,
         output_tokens=output_tokens if saw_tokens else None,
+        duration_seconds=max(duration_seconds, 0.0),
     )
     return run, findings_by_url

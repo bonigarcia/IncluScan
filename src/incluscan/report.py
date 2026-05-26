@@ -44,6 +44,25 @@ def _friendly_date(iso_text: str) -> str:
     return value.strftime("%b %d, %Y, %I:%M %p")
 
 
+def _format_duration(seconds: float | None) -> str:
+    if seconds is None:
+        return ""
+    total_seconds = max(int(round(seconds)), 0)
+    minutes, secs = divmod(total_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    parts = []
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes or hours:
+        parts.append(f"{minutes}m")
+    parts.append(f"{secs}s")
+    return " ".join(parts)
+
+
+def _run_sort_key(run: ScanRunSummary) -> tuple[str, str, str]:
+    return (run.started_at, run.snapshot_fetched_at, run.scan_id)
+
+
 def build_index_page(
     runs: list[ScanRunSummary],
     run_finding_counts: dict[str, int] | None = None,
@@ -52,14 +71,15 @@ def build_index_page(
     run_finding_counts = run_finding_counts or {}
     run_page_counts = run_page_counts or {}
     entries = []
-    for run in runs:
+    for index, run in enumerate(sorted(runs, key=_run_sort_key), start=1):
         finding_count = run.finding_count if run.finding_count is not None else run_finding_counts.get(run.scan_id, 0)
         page_count = run.page_count if run.page_count is not None else run_page_counts.get(run.scan_id, 0)
+        duration = _format_duration(run.duration_seconds)
         entries.append(
             f'''<article class="card entry">
-              <p class="run-title">{escape(run.base_url)} - {escape(_friendly_date(run.snapshot_fetched_at))}</p>
+              <p class="run-title">{index}. {escape(run.base_url)} - {escape(_friendly_date(run.snapshot_fetched_at))}</p>
               <span>{escape(run.vendor)} {escape(run.model)}</span>
-              <span class="muted">{page_count} pages analyzed - {finding_count} findings</span>
+              <span class="muted">{page_count} pages analyzed - {finding_count} findings - {escape(duration)}</span>
               <span><a href="runs/{escape(run.scan_id)}/index.html">Scan report</a></span>
             </article>'''
         )
@@ -136,6 +156,7 @@ def build_run_page(
         <span>{escape(_friendly_date(scan.snapshot_fetched_at))}</span>
         <span>{escape(scan.started_at)} → {escape(scan.finished_at)}</span>
         <span>{total_pages_analyzed} pages analyzed</span>
+        <span>Total time: {escape(_format_duration(scan.duration_seconds))}</span>
       </div>
       <p class="muted">Input tokens: {scan.input_tokens if scan.input_tokens is not None else ""} | Output tokens: {scan.output_tokens if scan.output_tokens is not None else ""}</p>
     </header>
