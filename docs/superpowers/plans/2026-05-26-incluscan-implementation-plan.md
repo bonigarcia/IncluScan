@@ -1082,7 +1082,7 @@ def run_scanner(console: Console) -> None:
     snapshot, pages = read_snapshot(snapshot_path)
 
     vendors = discover_vendors()
-    vendor_name = Prompt.ask("Choose vendor", choices=[vendor.name for vendor in vendors], console=console)
+    vendor_name = Prompt.ask("Choose provider", choices=[vendor.name for vendor in vendors], console=console)
     api_key_env = next(vendor.api_key_env for vendor in vendors if vendor.name == vendor_name)
     api_key = os.getenv(api_key_env) if api_key_env else None
     models = list_models_for_vendor(vendor_name, api_key=api_key)

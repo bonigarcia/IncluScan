@@ -50,14 +50,14 @@ The Scanner loads a saved snapshot, lets you choose a vendor and model, then ana
 $ python -m incluscan
 ? Choose mode Scanner
 ? Choose snapshot snapshot-896b0cf0.jsonl - www.uc3m.es - fetched May 26, 2026, 1:25 PM (8 pages)
-? Choose vendor Google
+? Choose provider Google
 ? Choose model gemini-2.5-flash
 ```
 
 What these choices mean:
 
 - `Choose snapshot`: pick the crawl you want to analyze.
-- `Choose vendor`: select the model provider.
+- `Choose provider`: select the model provider.
 - `Choose model`: select the model that will review the pages.
 
 Example output:

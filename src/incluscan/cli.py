@@ -94,7 +94,7 @@ def _choose_vendor(console: Console):
     vendors = discover_vendors()
     if not vendors:
         raise RuntimeError("No AI vendors available.")
-    vendor_name = choose_from_options("Choose vendor", [vendor.name for vendor in vendors])
+    vendor_name = choose_from_options("Choose provider", [vendor.name for vendor in vendors])
     if vendor_name is None:
         raise KeyboardInterrupt
     vendor = next(item for item in vendors if item.name == vendor_name)
