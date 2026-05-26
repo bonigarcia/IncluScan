@@ -13,7 +13,7 @@ class VendorOption:
 
 def ollama_is_available(http_get: Callable[..., object] = requests.get) -> bool:
     try:
-        response = http_get("http://localhost:11434/api/tags", timeout=2)
+        response = http_get("http://localhost:11434/api/tags", timeout=1)
         response.raise_for_status()
         return True
     except Exception:
