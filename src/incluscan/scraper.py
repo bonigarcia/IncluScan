@@ -127,26 +127,34 @@ def crawl_site(
             seen.add(current_key)
             continue
 
-        seen.add(current_key)
         try:
             response = fetch(current_url, timeout=10, headers={"User-Agent": "IncluScan/0.1"})
             response.raise_for_status()
         except requests.RequestException:
             continue
 
+        final_url = response.url or current_url
+        final_key = _crawl_key(base_url, final_url)
+        if final_key in seen:
+            seen.add(current_key)
+            continue
+
+        seen.add(current_key)
+        seen.add(final_key)
+
         content_type = response.headers.get("content-type", "")
-        if "pdf" in content_type.lower() or current_url.lower().endswith(".pdf"):
+        if "pdf" in content_type.lower() or final_url.lower().endswith(".pdf"):
             with NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
                 temp_file.write(response.content)
                 temp_pdf = Path(temp_file.name)
             try:
-                document = extract_pdf_document(temp_pdf, current_url)
+                document = extract_pdf_document(temp_pdf, final_url)
             finally:
                 temp_pdf.unlink(missing_ok=True)
         else:
-            document = extract_html_document(response.text, current_url)
+            document = extract_html_document(response.text, final_url)
             if allow_extended:
-                for discovered_url in discover_urls(current_url, response.text):
+                for discovered_url in discover_urls(final_url, response.text):
                     discovered_key = _crawl_key(base_url, discovered_url)
                     if discovered_key not in seen and discovered_key not in queued_keys:
                         queue.append(discovered_url)
@@ -155,7 +163,7 @@ def crawl_site(
         pages.append(
             ScrapedPage(
                 snapshot_id=snapshot.snapshot_id,
-                url=current_url,
+                url=final_url,
                 fetched_at=datetime.now(timezone.utc).isoformat(),
                 content_type=document.content_type,
                 title=document.title,
