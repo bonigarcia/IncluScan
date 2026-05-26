@@ -134,3 +134,23 @@ def test_scan_snapshot_records_timeout_as_empty_findings():
     scan, findings_by_url = scan_snapshot(snapshot, [page], fake_completion, "Ollama", "gemma3:1b")
 
     assert findings_by_url[page.url] == []
+
+
+def test_scan_snapshot_uses_spinner_for_each_page():
+    snapshot = SnapshotMetadata(snapshot_id="snapshot-001", base_url="https://www.uc3m.es/", fetched_at="2026-05-26T10:00:00Z")
+    page_one = ScrapedPage(snapshot_id="snapshot-001", url="https://www.uc3m.es/1", fetched_at=snapshot.fetched_at, content_type="text/html", title="1", text="a", language_hint="es", status_code=200, crawl_depth=0, source_type="seed")
+    page_two = ScrapedPage(snapshot_id="snapshot-001", url="https://www.uc3m.es/2", fetched_at=snapshot.fetched_at, content_type="text/html", title="2", text="b", language_hint="es", status_code=200, crawl_depth=0, source_type="seed")
+    messages = []
+
+    def fake_spinner(message, fn):
+        messages.append(message)
+        return fn()
+
+    def fake_completion(prompt: str):
+        return "[]", None, None
+
+    scan, findings = scan_snapshot(snapshot, [page_one, page_two], fake_completion, "Ollama", "gemma3:1b", with_spinner=fake_spinner)
+
+    assert messages == ["Analyzing https://www.uc3m.es/1", "Analyzing https://www.uc3m.es/2"]
+    assert findings[page_one.url] == []
+    assert findings[page_two.url] == []

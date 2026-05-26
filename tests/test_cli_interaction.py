@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from incluscan.cli import choose_from_options, choose_text, prompt_choice
@@ -118,3 +120,49 @@ def test_scraper_prompt_helpers_include_explanations(monkeypatch):
     assert calls[0][1]["instruction"] == "Maximum number of pages to fetch before stopping."
     assert calls[1][0].startswith("Enable extended crawl overrides?")
     assert "Follow extra in-site links beyond sitemap discovery for deeper coverage." in calls[1][0]
+
+
+def test_run_scraper_wraps_work_with_spinners(monkeypatch):
+    events = []
+
+    monkeypatch.setattr("incluscan.cli.choose_text", lambda *_args, **_kwargs: "https://www.uc3m.es/")
+    monkeypatch.setattr("incluscan.cli.prompt_page_cap", lambda: 100)
+    monkeypatch.setattr("incluscan.cli.prompt_extended_crawl", lambda: False)
+    monkeypatch.setattr("incluscan.cli.crawl_site", lambda *args, **kwargs: ("snapshot", ["page"]))
+    monkeypatch.setattr("incluscan.cli.write_snapshot", lambda *args, **kwargs: Path("docs/snapshots/snapshot.jsonl"))
+    monkeypatch.setattr("incluscan.cli.run_with_spinner", lambda console, message, fn: events.append(message) or fn())
+
+    class FakeConsole:
+        def print(self, *_args, **_kwargs):
+            return None
+
+    from incluscan.cli import run_scraper
+
+    run_scraper(FakeConsole())
+
+    assert events == ["Crawling site", "Writing snapshot"]
+
+
+def test_run_scanner_wraps_work_with_spinners(monkeypatch):
+    events = []
+
+    monkeypatch.setattr("incluscan.cli._choose_snapshot_path", lambda *_args, **_kwargs: Path("docs/snapshots/snapshot.jsonl"))
+    monkeypatch.setattr("incluscan.cli.read_snapshot", lambda *_args, **_kwargs: ("snapshot", ["page"]))
+    monkeypatch.setattr("incluscan.cli._choose_vendor", lambda *_args, **_kwargs: ("Ollama", None))
+    monkeypatch.setattr("incluscan.cli.list_models_for_vendor", lambda *_args, **_kwargs: ["gemma3:1b"])
+    monkeypatch.setattr("incluscan.cli.choose_from_options", lambda *_args, **_kwargs: "gemma3:1b")
+    monkeypatch.setattr("incluscan.cli.build_request_completion", lambda *_args, **_kwargs: lambda prompt: ("[]", None, None))
+    monkeypatch.setattr("incluscan.cli.scan_snapshot", lambda *args, **kwargs: (type("Run", (), {"scan_id": "scan-1"})(), {"url": []}))
+    monkeypatch.setattr("incluscan.cli.build_run_page", lambda *_args, **_kwargs: "<html></html>")
+    monkeypatch.setattr("incluscan.cli.write_reports", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("incluscan.cli.run_with_spinner", lambda console, message, fn: events.append(message) or fn())
+
+    class FakeConsole:
+        def print(self, *_args, **_kwargs):
+            return None
+
+    from incluscan.cli import run_scanner
+
+    run_scanner(FakeConsole())
+
+    assert events == ["Loading snapshot", "Generating report", "Writing reports"]

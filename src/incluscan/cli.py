@@ -12,6 +12,7 @@ from incluscan.report import build_run_page, write_reports
 from incluscan.scraper import crawl_site
 from incluscan.scanner import build_request_completion, scan_snapshot
 from incluscan.storage import read_snapshot, read_snapshot_metadata, write_snapshot
+from incluscan.ui import run_with_spinner
 from incluscan.vendors import discover_vendors, list_models_for_vendor
 
 
@@ -107,14 +108,18 @@ def run_scraper(console: Console) -> None:
         raise KeyboardInterrupt
     page_cap = prompt_page_cap()
     allow_extended = prompt_extended_crawl()
-    snapshot, pages = crawl_site(base_url, page_cap=page_cap, allow_extended=allow_extended)
-    snapshot_path = write_snapshot(SNAPSHOT_DIR, snapshot, pages)
+    snapshot, pages = run_with_spinner(
+        console,
+        "Crawling site",
+        lambda: crawl_site(base_url, page_cap=page_cap, allow_extended=allow_extended),
+    )
+    snapshot_path = run_with_spinner(console, "Writing snapshot", lambda: write_snapshot(SNAPSHOT_DIR, snapshot, pages))
     console.print(f"Saved snapshot to {snapshot_path}")
 
 
 def run_scanner(console: Console) -> None:
     snapshot_path = _choose_snapshot_path(console)
-    snapshot, pages = read_snapshot(snapshot_path)
+    snapshot, pages = run_with_spinner(console, "Loading snapshot", lambda: read_snapshot(snapshot_path))
 
     vendor_name, api_key = _choose_vendor(console)
     models = list_models_for_vendor(vendor_name, api_key=api_key)
@@ -125,9 +130,9 @@ def run_scanner(console: Console) -> None:
         raise KeyboardInterrupt
 
     request_completion = build_request_completion(vendor_name, model, api_key=api_key)
-    scan, findings_by_url = scan_snapshot(snapshot, pages, request_completion, vendor_name, model)
-    run_html = build_run_page(scan, findings_by_url)
-    write_reports(REPORT_DIR, [scan], {scan.scan_id: run_html})
+    scan, findings_by_url = scan_snapshot(snapshot, pages, request_completion, vendor_name, model, with_spinner=lambda message, fn: run_with_spinner(console, message, fn))
+    run_html = run_with_spinner(console, "Generating report", lambda: build_run_page(scan, findings_by_url))
+    run_with_spinner(console, "Writing reports", lambda: write_reports(REPORT_DIR, [scan], {scan.scan_id: run_html}))
     console.print(f"Wrote report for {scan.scan_id}")
 
 

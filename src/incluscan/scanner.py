@@ -85,12 +85,14 @@ def scan_snapshot(
     request_completion: Callable[[str], tuple[str, int | None, int | None]],
     vendor_name: str,
     model: str,
+    with_spinner: Callable[[str, Callable[[], tuple[str, int | None, int | None]]], tuple[str, int | None, int | None]] | None = None,
 ) -> tuple[ScanRunSummary, dict[str, list[ReviewFinding]]]:
     started_at = datetime.now(timezone.utc).isoformat()
     findings_by_url: dict[str, list[ReviewFinding]] = {}
     input_tokens = 0
     output_tokens = 0
     saw_tokens = False
+    spinner = with_spinner or (lambda _message, fn: fn())
 
     for page in pages:
         prompt = build_review_prompt(page.text)
@@ -98,7 +100,10 @@ def scan_snapshot(
         for attempt in range(2):
             current_prompt = prompt if attempt == 0 else f"{prompt}\n\nReturn only valid JSON that matches the required schema."
             try:
-                raw_response, page_input_tokens, page_output_tokens = request_completion(current_prompt)
+                raw_response, page_input_tokens, page_output_tokens = spinner(
+                    f"Analyzing {page.url}",
+                    lambda: request_completion(current_prompt),
+                )
             except requests.RequestException:
                 if attempt == 1:
                     parsed_findings = []
