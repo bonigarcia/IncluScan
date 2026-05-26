@@ -114,3 +114,38 @@ def test_build_run_page_shows_empty_state_for_missing_findings():
 
     assert "No changes found" in html
     assert "<p class=\"muted\">0 findings</p>" not in html
+
+
+def test_write_reports_preserves_existing_findings_counts(tmp_path):
+    run_one = ScanRunSummary(
+        scan_id="scan-001",
+        snapshot_id="snapshot-001",
+        base_url="https://www.uc3m.es/",
+        snapshot_fetched_at="2026-05-26T10:00:00Z",
+        vendor="Google",
+        model="gemini-2.5-flash",
+        started_at="2026-05-26T11:00:00Z",
+        finished_at="2026-05-26T11:05:00Z",
+        input_tokens=123,
+        output_tokens=45,
+    )
+    run_two = ScanRunSummary(
+        scan_id="scan-002",
+        snapshot_id="snapshot-002",
+        base_url="https://www.example.com/",
+        snapshot_fetched_at="2026-05-27T10:00:00Z",
+        vendor="Google",
+        model="gemini-2.5-flash",
+        started_at="2026-05-27T11:00:00Z",
+        finished_at="2026-05-27T11:05:00Z",
+        input_tokens=111,
+        output_tokens=22,
+    )
+
+    write_reports(tmp_path, [run_one], {run_one.scan_id: "<html></html>"}, {run_one.scan_id: 3}, {run_one.scan_id: 8})
+    write_reports(tmp_path, [run_two], {run_two.scan_id: "<html></html>"}, {run_two.scan_id: 5}, {run_two.scan_id: 2})
+
+    index_html = (tmp_path / "index.html").read_text(encoding="utf-8")
+
+    assert "3 findings" in index_html
+    assert "5 findings" in index_html

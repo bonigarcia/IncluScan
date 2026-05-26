@@ -41,3 +41,5 @@ class ScanRunSummary:
     finished_at: str
     input_tokens: int | None = None
     output_tokens: int | None = None
+    finding_count: int | None = None
+    page_count: int | None = None

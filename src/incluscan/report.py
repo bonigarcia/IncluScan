@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime
 import json
 from html import escape
@@ -53,14 +53,14 @@ def build_index_page(
     run_page_counts = run_page_counts or {}
     entries = []
     for run in runs:
-        finding_count = run_finding_counts.get(run.scan_id, 0)
-        page_count = run_page_counts.get(run.scan_id, 0)
+        finding_count = run.finding_count if run.finding_count is not None else run_finding_counts.get(run.scan_id, 0)
+        page_count = run.page_count if run.page_count is not None else run_page_counts.get(run.scan_id, 0)
         entries.append(
             f'''<article class="card entry">
-              <h1>{escape(run.vendor)} {escape(run.model)}</h1>
-              <h2>{escape(_friendly_date(run.snapshot_fetched_at))} - {escape(run.base_url)} ({page_count} pages analyzed)</h2>
-              <p class="muted">{finding_count} findings</p>
-              <p><a href="runs/{escape(run.scan_id)}/index.html">Scan report</a></p>
+              <p class="run-title">{escape(run.base_url)} - {escape(_friendly_date(run.snapshot_fetched_at))}</p>
+              <span>{escape(run.vendor)} {escape(run.model)}</span>
+              <span class="muted">{page_count} pages analyzed - {finding_count} findings</span>
+              <span><a href="runs/{escape(run.scan_id)}/index.html">Report</a></span>
             </article>'''
         )
     body = "".join(entries) if entries else '<p class="muted">No scan runs yet.</p>'
@@ -129,12 +129,10 @@ def build_run_page(
   <main class="page">
     <header class="card">
       <div class="run-details">
-        <p class="run-title">{escape(scan.vendor)}</p>
-        <h1 class="run-model">{escape(scan.model)}</h1>
+        <h2 class="run-title">{escape(scan.base_url)} - {escape(scan.vendor)} {escape(scan.model)}</h2>
       </div>
       <div class="meta">
         <span class="badge">{escape(scan.scan_id)}</span>
-        <span>{escape(scan.base_url)}</span>
         <span>{escape(_friendly_date(scan.snapshot_fetched_at))}</span>
         <span>{escape(scan.started_at)} → {escape(scan.finished_at)}</span>
         <span>{total_pages_analyzed} pages analyzed</span>
@@ -159,13 +157,22 @@ def write_reports(
     run_page_counts: dict[str, int] | None = None,
 ) -> None:
     report_root.mkdir(parents=True, exist_ok=True)
-    for scan_id, html in (run_pages or {}).items():
-        run_dir = report_root / "runs" / scan_id
-        run_dir.mkdir(parents=True, exist_ok=True)
-        (run_dir / "index.html").write_text(html, encoding="utf-8")
+    run_finding_counts = run_finding_counts or {}
+    run_page_counts = run_page_counts or {}
+    persisted_runs = []
     for run in runs:
+        persisted_runs.append(
+            replace(
+                run,
+                finding_count=run_finding_counts.get(run.scan_id, run.finding_count),
+                page_count=run_page_counts.get(run.scan_id, run.page_count),
+            )
+        )
+    for run in persisted_runs:
         run_dir = report_root / "runs" / run.scan_id
         run_dir.mkdir(parents=True, exist_ok=True)
+        if run_pages and run.scan_id in run_pages:
+            (run_dir / "index.html").write_text(run_pages[run.scan_id], encoding="utf-8")
         (run_dir / "meta.json").write_text(json.dumps(asdict(run), ensure_ascii=False), encoding="utf-8")
     all_runs = load_run_summaries(report_root)
     (report_root / "index.html").write_text(build_index_page(all_runs, run_finding_counts=run_finding_counts, run_page_counts=run_page_counts), encoding="utf-8")
