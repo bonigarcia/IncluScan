@@ -131,6 +131,41 @@ def test_build_run_page_shows_duration_in_metadata():
     assert "12m 30s" in html
 
 
+def test_build_run_page_includes_responsive_overflow_css():
+    scan = ScanRunSummary(
+        scan_id="scan-001",
+        snapshot_id="snapshot-001",
+        base_url="https://www.uc3m.es/",
+        snapshot_fetched_at="2026-05-26T10:00:00Z",
+        vendor="Google",
+        model="gemini-2.5-flash",
+        started_at="2026-05-26T11:00:00Z",
+        finished_at="2026-05-26T11:12:30Z",
+        input_tokens=123,
+        output_tokens=45,
+        duration_seconds=750.0,
+    )
+
+    html = build_run_page(
+        scan=scan,
+        findings_by_url={
+            "https://www.uc3m.es/long/very/very/very/very/very/very/very/very/long/url": [
+                ReviewFinding(
+                    original="los alumnos",
+                    modified="el estudiantado",
+                    justification="Neutraliza el lenguaje de género",
+                )
+            ]
+        },
+        total_pages_analyzed=1,
+    )
+
+    assert "overflow-x: hidden" not in html
+    assert "table-layout: auto" in html
+    assert ".section h2 a { display: block" in html
+    assert "overflow-wrap: anywhere" in html
+
+
 def test_build_run_page_shows_empty_state_for_missing_findings():
     scan = ScanRunSummary(
         scan_id="scan-001",
