@@ -1,26 +1,31 @@
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>IncluScan Reports</title><style>
+    html, body { width: 100%; }
     body { font-family: system-ui, sans-serif; margin: 0; background: #f7f7f8; color: #1f2937; }
-    .page { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .page { max-width: 1100px; margin: 0 auto; padding: 24px; box-sizing: border-box; }
     .card { background: white; border: 1px solid #e5e7eb; border-radius: 14px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
     .list { display: grid; gap: 16px; }
     .entry { display: grid; gap: 8px; }
-    .entry h1, .entry h2 { margin: 0; }
+    .entry h1, .entry h2 { margin: 0; overflow-wrap: anywhere; }
     .meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.92rem; color: #4b5563; }
     .badge { display: inline-block; background: #eef2ff; color: #3730a3; border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; }
-    .muted { color: #6b7280; }
-    .url-list a { display: inline-block; margin-right: 8px; margin-bottom: 8px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    .muted { color: #6b7280; overflow-wrap: anywhere; }
+    .url-list a { display: inline-block; margin-right: 8px; margin-bottom: 8px; overflow-wrap: anywhere; }
+    table { width: 100%; border-collapse: collapse; table-layout: auto; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; }
     th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; }
-    .section { margin-top: 18px; }
+    .section { margin-top: 18px; min-width: 0; }
+    .section h2 { max-width: 100%; margin: 0; }
+    .section h2 a { display: block; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
     .finding-empty { padding: 12px; color: #6b7280; font-style: italic; }
     .summary-list { margin: 12px 0 0; padding-left: 18px; }
     .summary-list li { margin: 4px 0; }
     .run-title { margin: 0; font-size: 1.35rem; line-height: 1.2; }
     .run-model { margin: 2px 0 0; font-size: 1.7rem; line-height: 1.15; font-weight: 700; }
     .run-details { display: grid; gap: 8px; }
+    details.card { min-width: 0; }
+    summary { cursor: pointer; overflow-wrap: anywhere; }
     a { color: #2563eb; text-decoration: none; }
     a:hover { text-decoration: underline; }
     </style></head>
@@ -40,6 +45,11 @@
               <span>Google gemini-3.5-flash</span>
               <span class="muted">200 pages analyzed - 484 findings - 34m 58s</span>
               <span><a href="runs/scan-c6624714/index.html">Scan report</a></span>
+            </article><article class="card entry">
+              <p class="run-title">3. https://www.uc3m.es/ - May 27, 2026, 07:39 AM</p>
+              <span>OpenAI gpt-5.4-nano</span>
+              <span class="muted">200 pages analyzed - 625 findings - 11m 22s</span>
+              <span><a href="runs/scan-d37df7fa/index.html">Scan report</a></span>
             </article></section>
   </main>
 </body>
