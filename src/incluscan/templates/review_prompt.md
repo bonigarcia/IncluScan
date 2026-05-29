@@ -8,6 +8,7 @@ Rules:
 - Do not modify proper names, brands, direct quotes, or technical terms unless strictly necessary.
 - Avoid artificial or unnatural expressions.
 - Prioritize clear, natural, and easy-to-understand alternatives.
+- If the adapted text would be effectively the same as the original after normalizing case, spaces, and punctuation, do not report it.
 - If no changes are needed, return an empty array: [].
 - Do not include any additional fields.
 

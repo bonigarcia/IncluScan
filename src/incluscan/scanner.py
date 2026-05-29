@@ -3,6 +3,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 import json
 import re
+import unicodedata
 from uuid import uuid4
 
 import requests
@@ -45,6 +46,19 @@ def parse_review_response(raw_text: str) -> list[ReviewFinding]:
             raise ValueError("each finding must contain only original, modified, and justification")
         findings.append(ReviewFinding(**item))
     return findings
+
+
+def _normalize_finding_text(text: str) -> str:
+    normalized = unicodedata.normalize("NFKC", text).casefold()
+    return re.sub(r"[\W_]+", "", normalized, flags=re.UNICODE)
+
+
+def _is_noop_finding(finding: ReviewFinding) -> bool:
+    return _normalize_finding_text(finding.original) == _normalize_finding_text(finding.modified)
+
+
+def filter_review_findings(findings: list[ReviewFinding]) -> list[ReviewFinding]:
+    return [finding for finding in findings if not _is_noop_finding(finding)]
 
 
 def build_request_completion(vendor_name: str, model: str, api_key: str | None = None) -> Callable[[str], tuple[str, int | None, int | None]]:
@@ -133,7 +147,7 @@ def scan_snapshot(
                 output_tokens += page_output_tokens
                 saw_tokens = True
             try:
-                parsed_findings = parse_review_response(raw_response)
+                parsed_findings = filter_review_findings(parse_review_response(raw_response))
                 break
             except (json.JSONDecodeError, ValueError):
                 parsed_findings = []

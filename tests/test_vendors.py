@@ -44,6 +44,12 @@ def test_prompt_template_is_markdown_file():
     assert PROMPT_TEMPLATE_PATH.name == "review_prompt.md"
 
 
+def test_prompt_template_mentions_normalized_noop_changes():
+    template = PROMPT_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+    assert "normalizing case, spaces, and punctuation" in template
+
+
 def test_parse_review_response_accepts_empty_array():
     assert parse_review_response("[]") == []
 
@@ -87,6 +93,37 @@ def test_scan_snapshot_uses_an_injected_completion_callable():
     scan, findings_by_url = scan_snapshot(snapshot, [page], fake_completion, "OpenAI", "gpt-4o-mini")
 
     assert scan.base_url == snapshot.base_url
+    assert findings_by_url[page.url] == []
+
+
+def test_scan_snapshot_discards_equivalent_findings_after_normalization():
+    snapshot = SnapshotMetadata(
+        snapshot_id="snapshot-001",
+        base_url="https://www.uc3m.es/",
+        fetched_at="2026-05-26T10:00:00Z",
+    )
+    page = ScrapedPage(
+        snapshot_id=snapshot.snapshot_id,
+        url="https://www.uc3m.es/",
+        fetched_at=snapshot.fetched_at,
+        content_type="text/html",
+        title="UC3M",
+        text="Ayúdanos a mejorar",
+        language_hint="es",
+        status_code=200,
+        crawl_depth=0,
+        source_type="seed",
+    )
+
+    def fake_completion(prompt: str):
+        return (
+            '[{"original":"Ayúdanos a mejorar","modified":"Ayúdanos a mejorar","justification":"No hay lenguaje sexista; la expresión es neutral."}]',
+            None,
+            None,
+        )
+
+    scan, findings_by_url = scan_snapshot(snapshot, [page], fake_completion, "Google", "gemini-2.5-flash")
+
     assert findings_by_url[page.url] == []
 
 
