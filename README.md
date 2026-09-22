@@ -1,4 +1,5 @@
-# IncluScan
+# IncluScan ![](https://bonigarcia.dev/img/incluscan.png)
+
 An AI-powered tool to analyze websites and suggest inclusive, non-sexist language improvements.
 
 ## Quickstart
