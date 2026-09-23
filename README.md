@@ -9,11 +9,13 @@ IncluScan is a Python CLI with two modes:
 - `Scrapper`: crawl a site from a base URL and store page text as JSONL (JSON Lines).
 - `Scanner`: load a saved snapshot and analyze each page with an AI model.
 
-Run it with:
+Run it from the repository root with:
 
 ```bash
 python -m incluscan
 ```
+
+Before the first run, install its dependencies (e.g., with `pip install -e .`). IncluScan requires Python 3.11+.
 
 ### Details
 
